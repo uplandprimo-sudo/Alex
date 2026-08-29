@@ -240,6 +240,16 @@ function greet(){
 
   add('al', msg);
   speak(msg);
+
+  // Proactive brief. Composed server-side, so it costs no Gemini quota and
+  // appears a moment after the greeting rather than replacing it.
+  call({action:'brief', lang:lang})
+    .then(function(res){
+      if(res && res.reply){
+        setTimeout(function(){ add('al', res.reply); speak(res.reply); }, 900);
+      }
+    })
+    .catch(function(){ /* a failed brief must never spoil the greeting */ });
 }
 
 function setLang(l){

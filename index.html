@@ -543,7 +543,19 @@ document.getElementById('rep').onclick = function () {
       d.remove();
       if (handled(res)) return;
       add('al', res.reply || 'Could not build the report.');
-      // The report is long; speaking it would be tedious, so it stays on screen.
+      speak(res.reply);
+      if (res.url) {
+        var f = document.getElementById('feed');
+        var w = document.createElement('div');
+        w.className = 'msg al';
+        var a = document.createElement('a');
+        a.href = res.url; a.target = '_blank';
+        a.textContent = '\uD83D\uDCC4  Open ' + (res.title || 'the report');
+        a.style.cssText = 'display:inline-block;padding:10px 16px;background:#B8752B;' +
+                          'color:#fff;border-radius:9px;text-decoration:none;font-weight:600';
+        w.appendChild(a);
+        f.appendChild(w); f.scrollTop = f.scrollHeight;
+      }
     })
     .catch(function (err) { d.remove(); add('sys', 'Report failed: ' + err.message); });
 };

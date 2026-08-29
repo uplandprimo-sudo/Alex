@@ -275,9 +275,12 @@ function savedVoice(code){
 }
 
 function voicesFor(code){
-  var pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code)===0; });
-  if(!pool.length) pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code)>-1; });
-  return pool;
+  // Strict: the language tag must START with the code, e.g. ar-SA, ar-XA, en-GB.
+  // A loose match would wrongly pull in unrelated languages.
+  return VOICES.filter(function(v){
+    var L=(v.lang||'').toLowerCase().replace('_','-');
+    return L===code || L.indexOf(code+'-')===0;
+  });
 }
 
 function fillVoicePickers(){
@@ -291,7 +294,7 @@ function fillVoicePickers(){
           return '<option value="'+v.name+'"'+(v.name===chosen?' selected':'')+'>'+
                  v.name+'  ('+v.lang+')</option>';
         }).join('')
-      : '<option value="">No voice installed for this language</option>';
+      : '<option value="">None installed on this device</option>';
   });
 }
 

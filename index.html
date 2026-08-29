@@ -77,6 +77,22 @@
   .dots span:nth-child(3){animation-delay:.32s}
   @keyframes b{0%,60%,100%{opacity:.25}30%{opacity:1}}
 
+  #cog{margin-left:8px;border:1px solid var(--line);background:#fff;color:var(--muted);
+       width:34px;height:34px;border-radius:9px;font-size:15px;cursor:pointer;flex-shrink:0}
+  #vpanel{position:fixed;inset:0;background:rgba(13,17,23,.55);z-index:70;display:none;
+          align-items:center;justify-content:center;padding:22px}
+  #vpanel.open{display:flex}
+  .vbox{background:#fff;border-radius:16px;padding:22px;width:min(370px,100%);
+        display:flex;flex-direction:column;gap:9px;max-height:88vh;overflow:auto}
+  .vhead{font-size:16px;font-weight:600;margin-bottom:4px}
+  .vbox label{font-size:12px;color:var(--muted);font-weight:600;margin-top:6px}
+  .vbox select{border:1px solid var(--line);border-radius:9px;padding:11px;font-size:14px;
+               background:var(--paper);outline:none;width:100%}
+  .vtest{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px;
+         font-size:13px;cursor:pointer;color:var(--ink)}
+  .vnote{font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+  .vdone{border:0;background:var(--ink);color:#fff;border-radius:10px;padding:12px;
+         font-size:14px;font-weight:600;cursor:pointer;margin-top:10px}
   #gate{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;
         flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px}
   #gate h2{margin:0;font-size:20px}
@@ -104,7 +120,23 @@
     <button id="bEn" class="on" onclick="setLang('en')">EN</button>
     <button id="bAr" onclick="setLang('ar')">ع</button>
   </div>
+  <button id="cog" title="Voice settings">&#9881;</button>
 </header>
+
+<div id="vpanel">
+  <div class="vbox">
+    <div class="vhead">Choose Alex's voice</div>
+    <label>English</label>
+    <select id="vEn"></select>
+    <button class="vtest" onclick="testVoice('en')">Test English</button>
+    <label>Arabic</label>
+    <select id="vAr"></select>
+    <button class="vtest" onclick="testVoice('ar')">Test Arabic</button>
+    <p class="vnote">Pick a male voice from each list. Your choice is saved on this device.
+       If a language has no male option, your device has not got one installed.</p>
+    <button class="vdone" onclick="saveVoices()">Done</button>
+  </div>
+</div>
 
 <div id="feed"></div>
 <div class="hint" id="hint">Hold the button and speak</div>
@@ -222,37 +254,115 @@ function dots(){
   d.innerHTML='<span></span><span></span><span></span>';
   f.appendChild(d); f.scrollTop=f.scrollHeight; return d;
 }
-var VOICES=[];
-function loadVoices(){ VOICES=window.speechSynthesis?speechSynthesis.getVoices():[]; }
+var VOICES=[], voiceReady=false;
+
+function loadVoices(){
+  if(!window.speechSynthesis) return;
+  var v=speechSynthesis.getVoices();
+  if(v && v.length){ VOICES=v; voiceReady=true; fillVoicePickers(); }
+}
 loadVoices();
-if(window.speechSynthesis) speechSynthesis.onvoiceschanged=loadVoices;
+if(window.speechSynthesis){
+  speechSynthesis.onvoiceschanged=loadVoices;
+  // Some devices populate late; poll briefly.
+  var tries=0, poll=setInterval(function(){
+    loadVoices(); if(voiceReady||++tries>20) clearInterval(poll);
+  },250);
+}
 
-var MALE=/david|mark|guy|george|james|daniel|alex|fred|ryan|male|naayf|nayf|hamed|hamid|shakir|maged|tarik/i;
-var FEMALE=/zira|hazel|susan|samantha|victoria|karen|moira|tessa|female|hoda|salma|laila|zariyah|amina/i;
+function savedVoice(code){
+  try{ return localStorage.getItem('alexVoice_'+code)||''; }catch(e){ return ''; }
+}
 
-function pickVoice(code){
-  if(!VOICES.length) loadVoices();
+function voicesFor(code){
   var pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code)===0; });
-  if(!pool.length) pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code.slice(0,2))===0; });
+  if(!pool.length) pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code)>-1; });
+  return pool;
+}
+
+function fillVoicePickers(){
+  [['en','vEn'],['ar','vAr']].forEach(function(pair){
+    var sel=document.getElementById(pair[1]);
+    if(!sel) return;
+    var pool=voicesFor(pair[0]);
+    var chosen=savedVoice(pair[0]);
+    sel.innerHTML = pool.length
+      ? pool.map(function(v){
+          return '<option value="'+v.name+'"'+(v.name===chosen?' selected':'')+'>'+
+                 v.name+'  ('+v.lang+')</option>';
+        }).join('')
+      : '<option value="">No voice installed for this language</option>';
+  });
+}
+
+function resolveVoice(code){
+  var want=savedVoice(code);
+  if(want){
+    var hit=VOICES.filter(function(v){ return v.name===want; })[0];
+    if(hit) return hit;
+  }
+  var pool=voicesFor(code);
   if(!pool.length) return null;
-  var male=pool.filter(function(v){ return MALE.test(v.name) && !FEMALE.test(v.name); });
+  var MALE=/david|mark|guy|george|james|daniel|fred|ryan|male|naayf|nayf|hamed|hamid|shakir|maged|tarik/i;
+  var FEMALE=/zira|hazel|susan|samantha|victoria|karen|moira|tessa|female|hoda|salma|laila|zariyah|amina/i;
+  var male=pool.filter(function(v){ return MALE.test(v.name)&&!FEMALE.test(v.name); });
   if(male.length) return male[0];
-  var notFemale=pool.filter(function(v){ return !FEMALE.test(v.name); });
-  return notFemale.length?notFemale[0]:pool[0];
+  var nf=pool.filter(function(v){ return !FEMALE.test(v.name); });
+  return nf.length?nf[0]:pool[0];
+}
+
+function sayWith(text, code){
+  var u=new SpeechSynthesisUtterance(text);
+  var v=resolveVoice(code);
+  if(v){ u.voice=v; u.lang=v.lang; } else { u.lang=(code==='ar')?'ar-SA':'en-US'; }
+  u.pitch=0.95; u.rate=1.0;
+  speechSynthesis.speak(u);
 }
 
 function speak(t){
   if(!window.speechSynthesis||!t) return;
   speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(t);
-  var code=(lang==='ar')?'ar':'en-us';
-  var v=pickVoice(code);
-  if(v){ u.voice=v; u.lang=v.lang; } else { u.lang=(lang==='ar')?'ar-SA':'en-US'; }
-  u.pitch=0.95;
-  speechSynthesis.speak(u);
+  var code=(lang==='ar')?'ar':'en';
+  // If the list has not arrived yet, wait a moment rather than using the default.
+  if(!voiceReady){
+    var waited=0, w=setInterval(function(){
+      loadVoices();
+      if(voiceReady||++waited>12){ clearInterval(w); sayWith(t,code); }
+    },200);
+    return;
+  }
+  sayWith(t,code);
 }
 
-// Open the console and type listVoices() to see what this device has.
+/* voice settings panel */
+document.getElementById('cog').onclick=function(){
+  loadVoices(); fillVoicePickers();
+  document.getElementById('vpanel').classList.add('open');
+};
+window.testVoice=function(code){
+  var sel=document.getElementById(code==='ar'?'vAr':'vEn');
+  var name=sel&&sel.value;
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(code==='ar'
+        ? 'صباح الخير مصطفى، معك أليكس.'
+        : 'Good morning Mustapha, Alex here.');
+  var v=VOICES.filter(function(x){ return x.name===name; })[0];
+  if(v){ u.voice=v; u.lang=v.lang; }
+  u.pitch=0.95;
+  speechSynthesis.speak(u);
+};
+window.saveVoices=function(){
+  try{
+    var e=document.getElementById('vEn').value, a=document.getElementById('vAr').value;
+    if(e) localStorage.setItem('alexVoice_en',e);
+    if(a) localStorage.setItem('alexVoice_ar',a);
+  }catch(err){}
+  document.getElementById('vpanel').classList.remove('open');
+};
+document.getElementById('vpanel').onclick=function(ev){
+  if(ev.target.id==='vpanel') this.classList.remove('open');
+};
+
 window.listVoices=function(){
   loadVoices();
   if(!VOICES.length){ console.log('No voices installed.'); return; }

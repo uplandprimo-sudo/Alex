@@ -222,13 +222,42 @@ function dots(){
   d.innerHTML='<span></span><span></span><span></span>';
   f.appendChild(d); f.scrollTop=f.scrollHeight; return d;
 }
+var VOICES=[];
+function loadVoices(){ VOICES=window.speechSynthesis?speechSynthesis.getVoices():[]; }
+loadVoices();
+if(window.speechSynthesis) speechSynthesis.onvoiceschanged=loadVoices;
+
+var MALE=/david|mark|guy|george|james|daniel|alex|fred|ryan|male|naayf|nayf|hamed|hamid|shakir|maged|tarik/i;
+var FEMALE=/zira|hazel|susan|samantha|victoria|karen|moira|tessa|female|hoda|salma|laila|zariyah|amina/i;
+
+function pickVoice(code){
+  if(!VOICES.length) loadVoices();
+  var pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code)===0; });
+  if(!pool.length) pool=VOICES.filter(function(v){ return v.lang.toLowerCase().indexOf(code.slice(0,2))===0; });
+  if(!pool.length) return null;
+  var male=pool.filter(function(v){ return MALE.test(v.name) && !FEMALE.test(v.name); });
+  if(male.length) return male[0];
+  var notFemale=pool.filter(function(v){ return !FEMALE.test(v.name); });
+  return notFemale.length?notFemale[0]:pool[0];
+}
+
 function speak(t){
   if(!window.speechSynthesis||!t) return;
   speechSynthesis.cancel();
   var u=new SpeechSynthesisUtterance(t);
-  u.lang=(lang==='ar')?'ar-SA':'en-US';
+  var code=(lang==='ar')?'ar':'en-us';
+  var v=pickVoice(code);
+  if(v){ u.voice=v; u.lang=v.lang; } else { u.lang=(lang==='ar')?'ar-SA':'en-US'; }
+  u.pitch=0.95;
   speechSynthesis.speak(u);
 }
+
+// Open the console and type listVoices() to see what this device has.
+window.listVoices=function(){
+  loadVoices();
+  if(!VOICES.length){ console.log('No voices installed.'); return; }
+  VOICES.forEach(function(v){ console.log(v.lang+'  |  '+v.name); });
+};
 
 /* ================= microphone ================= */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition;

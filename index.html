@@ -118,7 +118,7 @@
 </footer>
 
 <script>
-var lang='en', history=[], pending=null, draft=null;
+var lang='en', chatLog=[], pending=null, draft=null;
 var recog=null, listening=false, TOKEN='', greeted=false;
 
 /* ================= Google Sign-In ================= */
@@ -306,15 +306,15 @@ function send(text){
   }
 
   var d=dots();
-  call({action:'ask', text:text, lang:lang, history:history})
+  call({action:'ask', text:text, lang:lang, history:chatLog})
     .then(function(res){
       d.remove();
       if(handled(res)) return;
       add('al',res.reply||res.error||'...');
       speak(res.reply);
-      history.push({role:'user',text:text});
-      history.push({role:'alex',text:res.reply||''});
-      if(history.length>12) history=history.slice(-12);
+      chatLog.push({role:'user',text:text});
+      chatLog.push({role:'alex',text:res.reply||''});
+      if(chatLog.length>12) chatLog=chatLog.slice(-12);
       if(res.pending){ pending=res.pending; showBtns(); }
     })
     .catch(function(err){ d.remove(); add('sys','Connection problem: '+err.message); });
@@ -349,7 +349,7 @@ function commit(){
       if(handled(res)) return;
       add('al',res.reply||res.error||'Done.');
       speak(res.reply);
-      history.push({role:'alex',text:res.reply||''});
+      chatLog.push({role:'alex',text:res.reply||''});
     })
     .catch(function(err){ d.remove(); add('sys','Not saved: '+err.message); });
 }
@@ -373,7 +373,7 @@ fileIn.onchange=function(){
     if(handled(res)) return;
     add('al',res.reply||res.error||'...');
     speak(res.reply);
-    history.push({role:'alex',text:res.reply||''});
+    chatLog.push({role:'alex',text:res.reply||''});
     if(res.pending){ pending=res.pending; showBtns(); }
     if(res.draft){ draft=res.draft; }
   }).catch(function(e){

@@ -77,7 +77,9 @@
   .dots span:nth-child(3){animation-delay:.32s}
   @keyframes b{0%,60%,100%{opacity:.25}30%{opacity:1}}
 
-  #cog{margin-left:8px;border:1px solid var(--line);background:#fff;color:var(--muted);
+  #rep{margin-left:8px;border:1px solid var(--line);background:#fff;color:var(--muted);
+       width:34px;height:34px;border-radius:9px;font-size:15px;cursor:pointer;flex-shrink:0}
+  #cog{margin-left:6px;border:1px solid var(--line);background:#fff;color:var(--muted);
        width:34px;height:34px;border-radius:9px;font-size:15px;cursor:pointer;flex-shrink:0}
   #vpanel{position:fixed;inset:0;background:rgba(13,17,23,.55);z-index:70;display:none;
           align-items:center;justify-content:center;padding:22px}
@@ -120,6 +122,7 @@
     <button id="bEn" class="on" onclick="setLang('en')">EN</button>
     <button id="bAr" onclick="setLang('ar')">ع</button>
   </div>
+  <button id="rep" title="Weekly brief / monthly review">&#128203;</button>
   <button id="cog" title="Voice settings">&#9881;</button>
 </header>
 
@@ -527,6 +530,24 @@ function commit(){
     })
     .catch(function(err){ d.remove(); add('sys','Not saved: '+err.message); });
 }
+
+/* ================= reports ================= */
+document.getElementById('rep').onclick = function () {
+  if (!TOKEN) { requireSignIn(); return; }
+  var kind = confirm('OK for the monthly review, Cancel for the weekly brief.')
+             ? 'monthly' : 'weekly';
+  add('me', kind === 'monthly' ? 'Monthly review' : 'Weekly brief');
+  var d = dots();
+  call({ action:'report', kind:kind, lang:lang })
+    .then(function (res) {
+      d.remove();
+      if (handled(res)) return;
+      add('al', res.reply || 'Could not build the report.');
+      // The report is long; speaking it would be tedious, so it stays on screen.
+    })
+    .catch(function (err) { d.remove(); add('sys', 'Report failed: ' + err.message); });
+};
+
 
 /* ================= attachments ================= */
 var clip=document.getElementById('clip'), fileIn=document.getElementById('file');

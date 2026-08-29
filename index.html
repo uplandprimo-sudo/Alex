@@ -438,11 +438,22 @@ function send(text){
   if(draft){
     var mm=text.match(/\bv\s*([123])\b/i)||text.match(/villa\s*([123])/i)||text.match(/فيلا\s*([123])/);
     if(mm){
-      draft.villa='V'+mm[1];
-      pending={name:'add_invoice',args:draft}; draft=null;
-      var q=(lang==='ar')?'تمام، لـ '+pending.args.villa+'. بدك سجلها؟'
-                         :'Got it, '+pending.args.villa+'. Shall I record it?';
-      add('al',q); speak(q); showBtns();
+      var villa='V'+mm[1];
+      if(draft.items && draft.items.length){
+        draft.items.forEach(function(it){ it.villa=villa; });
+        pending={name:'add_invoice_batch',args:{items:draft.items}};
+        var n=draft.items.length;
+        var q=(lang==='ar')?'تمام، '+n+' بند لـ '+villa+'. بدك سجلهن؟'
+                           :'Got it, '+n+' line'+(n>1?'s':'')+' for '+villa+'. Shall I record them?';
+        draft=null;
+        add('al',q); speak(q); showBtns();
+      } else {
+        draft.villa=villa;
+        pending={name:'add_invoice',args:draft}; draft=null;
+        var q1=(lang==='ar')?'تمام، لـ '+villa+'. بدك سجلها؟'
+                            :'Got it, '+villa+'. Shall I record it?';
+        add('al',q1); speak(q1); showBtns();
+      }
       return;
     }
   }

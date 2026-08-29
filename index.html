@@ -225,10 +225,21 @@ function handled(res){
 
 /* ================= ui ================= */
 function greet(){
-  var h=new Date().getHours();
-  var g=h<12?'Good morning':(h<18?'Good afternoon':'Good evening');
-  add('al', g+', Mustapha. Ask me about targets, costs, invoices or cash — '+
-            'attach an invoice, or tell me what to record.');
+  var h = new Date().getHours();
+  var msg;
+
+  if (lang === 'ar') {
+    if (h < 12)      msg = 'صباح الخير مصطفى. كيفك اليوم؟';
+    else if (h < 18) msg = 'أهلا مصطفى. كيف ماشي نهارك؟';
+    else             msg = 'مساء الخير مصطفى. كيف كان نهارك؟';
+  } else {
+    if (h < 12)      msg = 'Good morning, Mustapha. How are you doing today?';
+    else if (h < 18) msg = 'Hey Mustapha. How\u2019s your day going?';
+    else             msg = 'Good evening, Mustapha. How was your day?';
+  }
+
+  add('al', msg);
+  speak(msg);
 }
 
 function setLang(l){

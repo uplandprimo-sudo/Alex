@@ -95,6 +95,18 @@
   .vnote{font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.45}
   .vdone{border:0;background:var(--ink);color:#fff;border-radius:10px;padding:12px;
          font-size:14px;font-weight:600;cursor:pointer;margin-top:10px}
+  #pdfView{position:fixed;inset:0;background:#0d1117;z-index:80;display:none;
+           flex-direction:column}
+  #pdfView.open{display:flex}
+  .pv-bar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#0d1117;
+          color:#fff;flex-shrink:0}
+  .pv-bar .t{font-size:13px;font-weight:600;flex:1;overflow:hidden;
+             text-overflow:ellipsis;white-space:nowrap}
+  .pv-bar button,.pv-bar a{border:1px solid rgba(255,255,255,.25);background:transparent;
+    color:#fff;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer;
+    text-decoration:none;white-space:nowrap}
+  #pdfFrame{flex:1;width:100%;border:0;background:#fff}
+  .pv-note{font-size:11px;color:#8b95a3;padding:8px 14px;background:#0d1117;text-align:center}
   #gate{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;
         flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:30px}
   #gate h2{margin:0;font-size:20px}
@@ -103,6 +115,16 @@
 </style>
 </head>
 <body>
+
+<div id="pdfView">
+  <div class="pv-bar">
+    <div class="t" id="pdfTitle">Document</div>
+    <a id="pdfOpen" href="#" target="_blank">Open in Drive</a>
+    <button onclick="closePdf()">Close</button>
+  </div>
+  <iframe id="pdfFrame" title="Document preview"></iframe>
+  <div class="pv-note" id="pdfNote"></div>
+</div>
 
 <div id="gate">
   <div class="mark" style="width:56px;height:56px;border-radius:15px;font-size:23px">A</div>
@@ -504,7 +526,8 @@ function send(text){
       chatLog.push({role:'alex',text:res.reply||''});
       if(chatLog.length>12) chatLog=chatLog.slice(-12);
       if(res.pending){ pending=res.pending; showBtns(); }
-      if(res.previewUrl) showPreview(res.previewUrl);
+      if(res.previewUrl) showPreview(res.previewUrl,
+        res.sendPending ? res.sendPending.title : 'Document');
       if(res.sendPending) showSendBar(res.sendPending);
     })
     .catch(function(err){ d.remove(); add('sys','Connection problem: '+err.message); });
@@ -540,7 +563,8 @@ function commit(){
       add('al',res.reply||res.error||'Done.');
       speak(res.reply);
       chatLog.push({role:'alex',text:res.reply||''});
-      if(res.previewUrl) showPreview(res.previewUrl);
+      if(res.previewUrl) showPreview(res.previewUrl,
+        res.sendPending ? res.sendPending.title : 'Document');
       if(res.sendPending) showSendBar(res.sendPending);
     })
     .catch(function(err){ d.remove(); add('sys','Not saved: '+err.message); });
@@ -580,15 +604,52 @@ document.getElementById('rep').onclick = function () {
 /* Emailing a buyer cannot be undone, so it is never triggered by a spoken
    "yes". It needs a deliberate tap on a button that says who it goes to. */
 
-function showPreview(url){
+/* Drive's /preview URL embeds in an iframe, so a document can be read
+   without leaving the conversation. A chat bubble is far too narrow for an
+   A4 page, so it opens as a full-screen overlay instead. */
+function openPdf(url, title){
+  var view  = document.getElementById('pdfView');
+  var frame = document.getElementById('pdfFrame');
+  var note  = document.getElementById('pdfNote');
+
+  document.getElementById('pdfTitle').textContent = title || 'Document';
+  document.getElementById('pdfOpen').href = String(url).replace('/preview', '/view');
+  note.textContent = '';
+  frame.src = url;
+  view.classList.add('open');
+
+  // Some browsers refuse to frame Drive. Say so rather than showing a blank.
+  var loaded = false;
+  frame.onload = function(){ loaded = true; };
+  setTimeout(function(){
+    if(!loaded) note.textContent = 'If nothing has appeared, use Open in Drive above.';
+  }, 3500);
+}
+
+function closePdf(){
+  document.getElementById('pdfView').classList.remove('open');
+  document.getElementById('pdfFrame').src = 'about:blank';
+}
+
+function showPreview(url, title){
   var f=document.getElementById('feed');
   var w=document.createElement('div'); w.className='msg al';
-  var a=document.createElement('a');
-  a.href=url; a.target='_blank';
-  a.textContent='\uD83D\uDCC4  Open the PDF';
-  a.style.cssText='display:inline-block;padding:10px 16px;background:#0d1117;color:#fff;'+
-                  'border-radius:9px;text-decoration:none;font-weight:600';
-  w.appendChild(a); f.appendChild(w); f.scrollTop=f.scrollHeight;
+  w.style.display='flex'; w.style.gap='8px'; w.style.flexWrap='wrap';
+
+  var read=document.createElement('button');
+  read.textContent='\uD83D\uDCC4  Read it here';
+  read.style.cssText='border:0;padding:10px 16px;background:#0d1117;color:#fff;'+
+                     'border-radius:9px;font-weight:600;font-size:13px;cursor:pointer';
+  read.onclick=function(){ openPdf(url, title); };
+
+  var drive=document.createElement('a');
+  drive.href=String(url).replace('/preview','/view'); drive.target='_blank';
+  drive.textContent='Open in Drive';
+  drive.style.cssText='padding:10px 14px;border:1px solid #e2e6ec;border-radius:9px;'+
+                      'color:#6b7480;text-decoration:none;font-size:13px';
+
+  w.appendChild(read); w.appendChild(drive);
+  f.appendChild(w); f.scrollTop=f.scrollHeight;
 }
 
 function showSendBar(p){

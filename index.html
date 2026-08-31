@@ -439,8 +439,19 @@ function sendTyped(){
   if(el.value.trim()){ send(el.value.trim()); el.value=''; }
 }
 
-var YES=['yes','yeah','yep','ok','okay','confirm','go ahead','do it','record it','save it',
-         'نعم','ايه','اي','تمام','اوك','سجل','سجلها','اوكي','ماشي'];
+// "Record it" means write to the sheet. It should not be what confirms a
+// document you are about to email. The generic list covers ordinary writes;
+// preparing a communication accepts the softer phrases too, and sending a
+// buyer email accepts none of them — that is always the button.
+var YES=['yes','yeah','yep','ok','okay','confirm','go ahead','do it','proceed',
+         'نعم','ايه','اي','تمام','اوك','اوكي','ماشي'];
+var YES_WRITE=['record it','save it','log it','add it','سجل','سجلها'];
+
+function isYes_(t, pendingName){
+  var writeAction = pendingName && pendingName !== 'prepare_communication';
+  var list = writeAction ? YES.concat(YES_WRITE) : YES;
+  return list.some(function(w){ return t.indexOf(w) === 0 || t === w; });
+}
 var NO =['no','cancel','stop','forget it','لا','الغي','بطل'];
 
 function send(text){
@@ -449,7 +460,7 @@ function send(text){
 
   if(pending){
     var t=text.toLowerCase().trim();
-    if(YES.some(function(w){return t.indexOf(w)===0||t===w;})){ commit(); return; }
+    if(isYes_(t, pending.name)){ commit(); return; }
     if(NO.some(function(w){return t.indexOf(w)===0||t===w;})){
       pending=null; clearBtns();
       var m=(lang==='ar')?'تمام، ما سجّلت شي.':'Fine, nothing recorded.';

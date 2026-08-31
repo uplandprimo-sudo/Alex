@@ -8,6 +8,13 @@
 <meta name="theme-color" content="#0d1117">
 <title>Alex — Serenity Hills</title>
 
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Alex">
+<meta name="apple-mobile-web-app-title" content="Alex">
+
 <!-- ==================================================================
      EDIT THESE TWO LINES, THEN SAVE.
      ALEX_ENDPOINT   = your Apps Script /exec URL (deployment set to "Anyone")
@@ -131,6 +138,11 @@
   <h2>Alex</h2>
   <p>Serenity Hills project assistant.<br>Sign in with your Google account to continue.</p>
   <div id="gbtn"></div>
+  <button id="installBtn" onclick="installApp()"
+          style="display:none;border:1px solid var(--line);background:#fff;color:var(--ink);
+                 border-radius:11px;padding:11px 20px;font-size:13.5px;cursor:pointer">
+    Install Alex on this device
+  </button>
   <div id="gateMsg"></div>
 </div>
 
@@ -190,7 +202,7 @@ window.onGoogleCredential = function (resp) {
     }
     document.getElementById('who').textContent = res.email || 'Serenity Hills';
     document.getElementById('gate').style.display = 'none';
-    if (!greeted) { greeted = true; greet(); }
+    if (!greeted) { greeted = true; greet(); runShortcut_(); }
   }).catch(function () {
     document.getElementById('gateMsg').textContent =
       'Cannot reach Alex. Check the endpoint URL in this file.';
@@ -221,6 +233,51 @@ function initSignIn(){
   google.accounts.id.prompt();
 }
 window.addEventListener('load', initSignIn);
+
+/* ---------- installable app ---------- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('service-worker.js')
+      .catch(function (e) { console.log('Service worker not registered:', e); });
+  });
+}
+
+// Chrome and Edge offer installation through this event. Safari does not —
+// there it is Share, then Add to Home Screen.
+var installPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  installPrompt = e;
+  var b = document.getElementById('installBtn');
+  if (b) b.style.display = 'inline-block';
+});
+
+function installApp(){
+  if (!installPrompt) return;
+  installPrompt.prompt();
+  installPrompt.userChoice.then(function () {
+    installPrompt = null;
+    var b = document.getElementById('installBtn');
+    if (b) b.style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', function () {
+  installPrompt = null;
+  var b = document.getElementById('installBtn');
+  if (b) b.style.display = 'none';
+});
+
+/* Home-screen shortcuts arrive as ?ask=… — run the question on open. */
+function runShortcut_(){
+  var q = new URLSearchParams(location.search).get('ask');
+  if (!q) return;
+  var text = q === 'attention' ? 'what needs my attention?'
+           : q === 'due'       ? 'what is due?'
+           : '';
+  if (text) setTimeout(function(){ send(text); }, 1200);
+  history.replaceState({}, '', location.pathname);
+}
 
 function requireSignIn(){
   TOKEN = '';
